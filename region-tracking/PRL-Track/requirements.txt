@@ -6,6 +6,6 @@ opencv_python==4.7.0.68
 Pillow==9.4.0
 tensorboardX==2.6.2.2
 timm==0.4.12
-torch==1.13.1
+# torch==1.13.1
 tqdm==4.65.0
 yacs==0.1.8

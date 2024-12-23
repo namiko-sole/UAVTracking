@@ -13,7 +13,7 @@ from pysot.utils.model_load import load_pretrain
 from simulator import DroneSimulator
 import multiprocessing
 
-map_path = "/home/niuhy24/PRL-Track/pid.jpg"  # 地图文件路径
+map_path = r"E:\github\UAVTracking\region-tracking\PRL-Track\pid.jpg"  # 地图文件路径
 window_range = 1920/2,1080/2  # 滑动窗口范围
 tracking_area = [(2300,3400 ), (2400, 3500)]  # 追踪区域
 ship_speed = [400.0, 0.0]  # 船的速度 (x, y)

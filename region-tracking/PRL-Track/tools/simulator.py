@@ -140,7 +140,7 @@ class DroneSimulator:
 
 if __name__ == '__main__':
     # 示例参数
-    map_path = "C:\\Users\\gaoxi\\Desktop\\DJI_20240605135922_0029_W.jpg"  # 地图文件路径
+    map_path = r"E:\github\UAVTracking\region-tracking\PRL-Track\pid.jpg"  # 地图文件路径
     window_range = (200, 1000)  # 滑动窗口范围
     tracking_area = [(2000, 2000), (3000, 3000)]  # 追踪区域
     ship_speed = [3.0, 4.0]  # 船的速度 (x, y)
