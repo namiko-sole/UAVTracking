@@ -17,7 +17,7 @@ class PIDController:
         self.num=0
 
     def calculate(self, error, dt):
-        self.integral += error * dt
+        self.integral += error #* dt
         derivative = (error - self.previous_error) / dt if dt > 0 else 0
         output = self.kp * error + self.ki * self.integral + self.kd * derivative
         self.previous_error = error

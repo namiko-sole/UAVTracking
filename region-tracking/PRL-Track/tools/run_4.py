@@ -108,7 +108,7 @@ if __name__ == "__main__":
     elif(input == "2"):
         video_path = "/home/niuhy24/object-tracker-master/docs/dj.MP4"
     elif(input == "3"):
-        video_path = r"E:\github\UAVTracking\test_data\cut_video2.mp4"
+        video_path = r"E:\github\UAVTracking\test_data\cut_video.mp4"
     else:
         print("请输入1或2")
     # 加载跟踪器
