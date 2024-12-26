@@ -11,6 +11,7 @@ from pysot.models.model_builder import ModelBuilder
 from pysot.tracker.prl_tracker import PRLTrack
 from pysot.utils.model_load import load_pretrain
 
+from proposal import get_plain_region, get_obvious_region
 
 class PIDController:
     def __init__(self, kp, ki, kd):
@@ -31,25 +32,34 @@ class PIDController:
 
 class UAVTracking:
     """无人机自动跟踪系统"""
-    def __init__(self, config_path, model_path, pid_params=(0.5,0.0,0.0), debug=False, max_speed_x=100, max_speed_y=100):
+    def __init__(self, config_path, model_path, pid_params=(0.2,0.0,0.5), debug=False):
+        # 预设变量
         self.debug = debug
         self.dt = 0
-        self.lasttime = 0
-        self.init = False
         self.step=0
-        self.max_speed_x = max_speed_x
-        self.max_speed_y = max_speed_y
+        self.init = False
+        self.lasttime = 0
+        self.width = 0
+        self.heigt = 0
+        # self.max_speed_x = max_speed_x
+        # self.max_speed_y = max_speed_y
 
+        # 跟踪数据记录
         self.last_frame = None
         self.last_bbox = None
         self.relative_bbox = None
-        self.simulator_bbox = None
-        self.width = 0
-        self.heigt = 0
 
+        # 模拟相关参数
+        self.max_simulator_acc_x = 5
+        self.max_simulator_acc_y = 5
+        self.simulator_speed_x = 0
+        self.simulator_speed_y = 0
+        self.simulator_bbox = None
+
+        # 加载算法模型
         self.pid_x = PIDController(*pid_params)
         self.pid_y = PIDController(*pid_params)
-
+        
         self.tracker = self.__load_tracker(config_path, model_path)
     
     def __load_tracker(self,config_path, model_path):
@@ -69,22 +79,20 @@ class UAVTracking:
     
     def __track_once(self,frame):
         if not self.init:
-            init_bbox = self.region_proposal(frame)[0]
+            init_bbox = self.obvious_region_proposal(frame)[0]
             self.tracker.init(frame, init_bbox)  # 初始化跟踪器
             self.init = True
 
         # 如果目标已选择，进行跟踪
         outputs = self.tracker.track(frame)
         pred_bbox = outputs["bbox"]
-        # x, y, w, h = map(int, pred_bbox)
         return map(int, pred_bbox)
 
     def track(self,frame):
         if self.width==0 and self.heigt == 0:
             self.width, self.heigt = frame.shape[1], frame.shape[0]
-            bbox_wh = 100
-            # self.simulator_bbox = [self.width//2-bbox_wh//2, self.heigt//2-bbox_wh//2, bbox_wh, bbox_wh]
-            self.simulator_bbox = [0, 0, bbox_wh, bbox_wh]
+            self.simulator_bbox = [0, 0, 100, 100]
+
         dt = (datetime.now() - self.lasttime).total_seconds() if self.lasttime!=0 else 0
         x, y, w, h = self.__track_once(frame)
         self.last_bbox = [x,y,w,h]
@@ -101,13 +109,15 @@ class UAVTracking:
 
         err_x, err_y = pred_x-target_x, pred_y-target_y
         speed_x, speed_y = self.__get_speed(dt, err_x, err_y)
-        speed_x = min(speed_x, self.max_speed_x) if speed_x>0 else max(speed_x, -self.max_speed_x)
-        speed_y = min(speed_y, self.max_speed_y) if speed_y>0 else max(speed_y, -self.max_speed_y)
+        # speed_x = min(speed_x, self.max_speed_x) if speed_x>0 else max(speed_x, -self.max_speed_x)
+        # speed_y = min(speed_y, self.max_speed_y) if speed_y>0 else max(speed_y, -self.max_speed_y)
 
         if self.debug:
-            self.simulator_bbox[0] = int(self.simulator_bbox[0]+speed_x)
-            self.simulator_bbox[1] = int(self.simulator_bbox[1]+speed_y)
-            print(f"steps: {self.step} | dt: {dt} | error: {err_x}, {err_y} | speed_x: {speed_x} | speed_y: {speed_y}")
+            self.simulator_speed_x += max(min(speed_x-self.simulator_speed_x, self.max_simulator_acc_x), -self.max_simulator_acc_x)
+            self.simulator_speed_y += max(min(speed_y-self.simulator_speed_y, self.max_simulator_acc_y), -self.max_simulator_acc_x)
+            self.simulator_bbox[0] = int(self.simulator_bbox[0]+self.simulator_speed_x)
+            self.simulator_bbox[1] = int(self.simulator_bbox[1]+self.simulator_speed_y)
+            print(f"steps: {self.step} | dt: {dt} | error: {err_x}, {err_y} | calc_x: {speed_x} | calc_y: {speed_y} | sim_x: {self.simulator_speed_x} | sim_y: {self.simulator_speed_y}")
 
         self.lasttime = datetime.now()
         self.last_frame = frame
@@ -160,16 +170,16 @@ class UAVTracking:
         x, y, w, h = xywh
         return [x+w//2, y+h//2]
 
-    def region_proposal(self, frame):
-        # height, width = 1080//2,1920//2
-        # x = width / 2
-        # y = height / 2
+    def obvious_region_proposal(self, frame):
         x = self.width // 2 - 50
         y = self.heigt // 2 - 50
         w = 100
         h = 100
         bbox = [x, y, w, h]  # 转为中心点坐标格式
         return [bbox]
+    
+    def plain_region_proposal(self, frame):
+        return get_plain_region
 
 
 class VideoData:
