@@ -32,7 +32,7 @@ class PIDController:
 
 class UAVTracking:
     """无人机自动跟踪系统"""
-    def __init__(self, config_path, model_path, pid_params=(0.2,0.0,0.5), debug=False):
+    def __init__(self, config_path, model_path, pid_params=(0.2,0.0,0.5), debug=False, simulate=False):
         # 预设变量
         self.debug = debug
         self.dt = 0
@@ -40,7 +40,7 @@ class UAVTracking:
         self.init = False
         self.lasttime = 0
         self.width = 0
-        self.heigt = 0
+        self.height = 0
         # self.max_speed_x = max_speed_x
         # self.max_speed_y = max_speed_y
 
@@ -48,6 +48,8 @@ class UAVTracking:
         self.last_frame = None
         self.last_bbox = None
         self.relative_bbox = None
+        self.speed_x = 0
+        self.speed_y = 0
 
         # 模拟相关参数
         self.max_simulator_acc_x = 5
@@ -55,6 +57,7 @@ class UAVTracking:
         self.simulator_speed_x = 0
         self.simulator_speed_y = 0
         self.simulator_bbox = None
+        self.simulate = simulate
 
         # 加载算法模型
         self.pid_x = PIDController(*pid_params)
@@ -89,8 +92,8 @@ class UAVTracking:
         return map(int, pred_bbox)
 
     def track(self,frame):
-        if self.width==0 and self.heigt == 0:
-            self.width, self.heigt = frame.shape[1], frame.shape[0]
+        if self.width==0 and self.height == 0:
+            self.width, self.height = frame.shape[1], frame.shape[0]
             self.simulator_bbox = [0, 0, 100, 100]
 
         dt = (datetime.now() - self.lasttime).total_seconds() if self.lasttime!=0 else 0
@@ -98,10 +101,10 @@ class UAVTracking:
         self.last_bbox = [x,y,w,h]
 
         pred_x, pred_y = self.__get_bbox_center(self.last_bbox)
-        if self.debug:
+        if self.debug and self.simulate:
             target_x, target_y = self.__get_bbox_center(self.simulator_bbox)
         else:
-            target_x, target_y = self.width//2, self.heigt//2
+            target_x, target_y = self.width//2, self.height//2
         
         if self.relative_bbox is not None:
             pred_x += self.relative_bbox[0]
@@ -109,6 +112,8 @@ class UAVTracking:
 
         err_x, err_y = pred_x-target_x, pred_y-target_y
         speed_x, speed_y = self.__get_speed(dt, err_x, err_y)
+        self.speed_x = speed_x
+        self.speed_y = speed_y
         # speed_x = min(speed_x, self.max_speed_x) if speed_x>0 else max(speed_x, -self.max_speed_x)
         # speed_y = min(speed_y, self.max_speed_y) if speed_y>0 else max(speed_y, -self.max_speed_y)
 
@@ -146,16 +151,24 @@ class UAVTracking:
     def reset_relative_bbox(self):
         self.relative_bbox = None
 
-    def get_debug_iamge(self):
+    def get_debug_iamge(self, simulate=False):
         _image = self.last_frame.copy()
         last_bbox = self.__get_bbox_points(self.last_bbox)
         cv2.drawContours(_image, [np.array(last_bbox)], 0, (0,0,255), 3)
         if self.relative_bbox is not None:
             relative_bbox = self.__get_bbox_points(self.get_relative_bbox())
             cv2.drawContours(_image, [np.array(relative_bbox)], 0, (0,255,0), 3)
-        if self.debug:
+        if self.debug and simulate:
             debug_bbox = self.__get_bbox_points(self.simulator_bbox)
             cv2.drawContours(_image, [np.array(debug_bbox)], 0, (255,0,0), 3)
+            debug_bbox_center = self.__get_bbox_center(self.simulator_bbox)
+            debug_arrow_x = int(min(max(debug_bbox_center[0]+self.simulator_speed_x, 0), self.width))
+            debug_arrow_y = int(min(max(debug_bbox_center[1]+self.simulator_speed_y, 0), self.height))
+            cv2.arrowedLine(_image, debug_bbox_center, (debug_arrow_x, debug_arrow_y), (255,0,0), 5)
+        else:
+            debug_arrow_x = int(min(max(self.width//2+self.speed_x, 0), self.width))
+            debug_arrow_y = int(min(max(self.height//2+self.speed_y, 0), self.height))
+            cv2.arrowedLine(_image, (self.width//2, self.height//2), (debug_arrow_x, debug_arrow_y), (255,0,0), 5)
         return _image
     
     def __get_bbox_points(self, xywh):
@@ -172,7 +185,7 @@ class UAVTracking:
 
     def obvious_region_proposal(self, frame):
         x = self.width // 2 - 50
-        y = self.heigt // 2 - 50
+        y = self.height // 2 - 50
         w = 100
         h = 100
         bbox = [x, y, w, h]  # 转为中心点坐标格式
@@ -218,7 +231,7 @@ if __name__ == "__main__":
     model_path = "tools/snapshot/best.pth"
 
     # 初始化跟踪模型
-    tracker = UAVTracking(config_path, model_path, debug=True)
+    tracker = UAVTracking(config_path, model_path, debug=True, simulate=False)
 
     # 获取跟踪图像数据
     frames = VideoData(r"E:\github\UAVTracking\test_data\cut_video.mp4")

@@ -404,13 +404,14 @@ def get_obvious_region(image):
         wh_scale = width / (height+1e-5)
         area = width * height
         if area < 1000: continue
-        if area > 200000: continue
+        if area > 30000: continue
         if wh_scale<0.2 or wh_scale>3: continue
         box = cv2.boxPoints(rect)
         box = np.int0(box)
         boxs.append(box)
 
         cv2.drawContours(image, [box], 0, (0,0,255), 3)
+        cv2.imwrite("temp1.png", image)
     cv2.namedWindow("Region Proposal Test", cv2.WINDOW_NORMAL)
     cv2.imshow("Region Proposal Test", image)
     cv2.imshow("Region Proposal Edges", edges)
@@ -602,8 +603,8 @@ if __name__ == "__main__":
     # image = cv2.imdecode(np.fromfile(r"E:\github\UAVTracking\test_data\WeChat_20241220211216.png",dtype=np.uint8),cv2.IMREAD_COLOR)
     image = cv2.imdecode(np.fromfile(r"E:\github\UAVTracking\test_data\cut_video.mp4_20241223_133516.114.jpg",dtype=np.uint8),cv2.IMREAD_COLOR)
 
-    # get_obvious_region(image)
+    get_obvious_region(image)
     # get_goods_region(image, 5)
-    get_plain_region(image)
+    # get_plain_region(image)
     
     pass

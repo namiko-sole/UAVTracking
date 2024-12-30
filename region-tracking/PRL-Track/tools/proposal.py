@@ -176,9 +176,9 @@ def get_obvious_region(image):
     return boxs
 
 def get_plain_region(image, edge_thres1=50, edge_thres2=100, 
-                     min_area_thres=2000, max_area_thres=np.nan,
+                     min_area_thres=2000, max_area_thres=500000,
                      sample_gap=30, adjacent_rect_gap=5,
-                     dilate_kernel=5, debug=False, debug_consice=False):
+                     dilate_kernel=5, debug=False, debug_details=False):
     """
     获取图像内的空地投放区域
     :param img: 输入图像，单通道二值图
@@ -190,6 +190,8 @@ def get_plain_region(image, edge_thres1=50, edge_thres2=100,
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, edge_thres1, edge_thres2)
     plain_region = cv2.dilate(edges, np.ones((dilate_kernel,dilate_kernel), np.uint8))
+    plain_region[:150, :] = 0
+    plain_region[-400:, :] = 0
     contours, _ = cv2.findContours(plain_region, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
     if debug:
         image = image.copy()
@@ -220,7 +222,7 @@ def get_plain_region(image, edge_thres1=50, edge_thres2=100,
             if cv2.contourArea(rect)<1000: continue  # 如果得到的矩形面积太小，跳过
             cv2.rectangle(plain_region, rect[0], rect[2], 255, -1)  # 对已生成矩形的区域标记
             rects.append(rect)
-            if debug:
+            if debug and debug_details:
                 cv2.circle(image, (center[0], center[1]), 5, (255, 0, 0), -1)
                 cv2.drawContours(image, [rect], 0, (0,255,0), 3)
 
@@ -265,7 +267,7 @@ def get_plain_region(image, edge_thres1=50, edge_thres2=100,
             if idx not in merged_idx:
                 final_rects.append(rect)
                 if debug: cv2.drawContours(image, [rect], 0, (255,0,0), 3)
-        if debug: cv2.drawContours(image, [cnt], 0, (0,0,255), 3)
+        if debug and debug_details: cv2.drawContours(image, [cnt], 0, (0,0,255), 3)
         all_rects.extend(rects)
 
     if debug:
@@ -275,15 +277,15 @@ def get_plain_region(image, edge_thres1=50, edge_thres2=100,
 
 
 if __name__ == "__main__":
-    # image = cv2.imdecode(np.fromfile(r"E:\github\UAVTracking\test_data\WeChat_20241220211216.png",dtype=np.uint8),cv2.IMREAD_COLOR)
-    image = cv2.imdecode(np.fromfile(r"E:\github\UAVTracking\test_data\cut_video.mp4_20241223_133516.114.jpg",dtype=np.uint8),cv2.IMREAD_COLOR)
+    image = cv2.imdecode(np.fromfile(r"E:\github\UAVTracking\test_data\WeChat_20241220211216.png",dtype=np.uint8),cv2.IMREAD_COLOR)
+    # image = cv2.imdecode(np.fromfile(r"E:\github\UAVTracking\test_data\cut_video.mp4_20241223_133516.114.jpg",dtype=np.uint8),cv2.IMREAD_COLOR)
     # image = cv2.imdecode(np.fromfile(r"E:\github\UAVTracking\test_data\screen-20241202-121915.mp4_20241225_163214.686.jpg",dtype=np.uint8),cv2.IMREAD_COLOR)
 
     
     start_time = time.time()
 
     # rects = get_plain_region(image)
-    rects, debug_image, debug_region = get_plain_region(image, debug=True)
+    rects, debug_image, debug_region = get_plain_region(image, debug=True)#, debug_details=True)
 
     print(f"cost: {time.time()-start_time:.2f}s")
 
